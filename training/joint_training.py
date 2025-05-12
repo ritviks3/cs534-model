@@ -5,9 +5,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from collections import Counter
 import numpy as np
 from tqdm import tqdm
 import glob
@@ -22,7 +25,7 @@ LEARNING_RATE = 1e-3
 WINDOW_SIZE = 10
 FEATURE_DIM = 6
 EMBEDDING_DIM = 32
-ALPHA = 1.0
+ALPHA = 0.5
 BETA = 1.0
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FILEPATHS = glob.glob("data_new/**/*.csv", recursive=True)
@@ -66,13 +69,22 @@ val_dataset = Subset(full_dataset, val_idx)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
+train_labels = [full_dataset[i][2] for i in train_idx]
+label_counts = Counter(train_labels)
+
+total = sum(label_counts.values())
+w_neg = total / (2.0 * label_counts[0])
+w_pos = total / (2.0 * label_counts[1])
+weights = torch.tensor([w_neg, w_pos], dtype=torch.float32).to(DEVICE)
+
 print("Initializing model...")
 input_dim = WINDOW_SIZE * FEATURE_DIM
 ae = Autoencoder(input_dim=input_dim, embedding_dim=EMBEDDING_DIM)
 model = JointAutoencoderClassifier(ae, embedding_dim=EMBEDDING_DIM).to(DEVICE)
 recon_loss_fn = nn.MSELoss()
-clf_loss_fn = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+clf_loss_fn = nn.CrossEntropyLoss(weight=weights)
+optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-2)
+scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
 print("Starting training...")
 for epoch in range(EPOCHS):
@@ -98,6 +110,8 @@ for epoch in range(EPOCHS):
 
         total_recon_loss += loss_recon.item() * addr_window.size(0)
         total_clf_loss += loss_clf.item() * addr_window.size(0)
+    
+    scheduler.step()
 
     avg_recon = total_recon_loss / len(train_dataset)
     avg_clf = total_clf_loss / len(train_dataset)
