@@ -1,0 +1,6 @@
+data_old/
+*.csv
+*.pt
+data_new/
+*.csv
+*.pt
