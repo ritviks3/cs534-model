@@ -1,5 +1,5 @@
 import torch
-from models.autoencoder import Autoencoder
+from models.vae import Autoencoder
 
 input_dim = 100 * 6
 embedding_dim = 64

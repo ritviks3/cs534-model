@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.autoencoder import Autoencoder
+from models.vae import Autoencoder
 from models.mlp import MLPClassifier
 
 class AEMLPWrapper(nn.Module):

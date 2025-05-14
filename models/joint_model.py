@@ -1,26 +1,52 @@
 import torch
 import torch.nn as nn
-from models.autoencoder import Autoencoder
+from models.vae import VAE
 
-class JointAutoencoderClassifier(nn.Module):
-    def __init__(self, ae: Autoencoder, embedding_dim, hidden_dims=(64, 32), num_classes=2):
+class JointVAEClassifier(nn.Module):
+    def __init__(self, vae: VAE, embedding_dim, hidden_dims=(64, 32), num_classes=2):
         super().__init__()
-        self.ae = ae
+        self.vae = vae
+
+        self.projection = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1)
+        )
         
         self.classifier = nn.Sequential(
-            nn.Linear(embedding_dim + 40, hidden_dims[0]),
+            nn.Linear(embedding_dim + 40, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_dims[0], hidden_dims[1]),
+            nn.Dropout(0.25),
+
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_dims[1], num_classes)
+            nn.Dropout(0.25),
+
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+
+            nn.Linear(32, num_classes)
         )
 
     def forward(self, addr_window, stats_window):
         B = addr_window.size(0)
-        recon, embedding = self.ae(addr_window)
+
+        x_flat = addr_window.view(B, -1)
+
+        recon, mu, logvar = self.vae(x_flat)
+
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        z = mu + eps * std
+
+        z_proj = self.projection(z)
+
         x_stats_flat = stats_window.view(B, -1)
-        x = torch.cat([embedding, x_stats_flat], dim=1)
+        x = torch.cat([z_proj, x_stats_flat], dim=1)
+
         logits = self.classifier(x)
-        return recon, logits
+        return recon, mu, logvar, logits

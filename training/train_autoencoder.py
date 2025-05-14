@@ -8,7 +8,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
 from preprocessing.dataset import MemoryAccessWindowDataset
-from models.autoencoder import Autoencoder
+from models.vae import Autoencoder
 from tqdm import tqdm
 
 BATCH_SIZE = 64

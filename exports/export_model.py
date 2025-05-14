@@ -1,9 +1,8 @@
 import torch
 import os
-from models.autoencoder import Autoencoder
+from models.vae import Autoencoder
 from models.joint_model import JointAutoencoderClassifier
 
-# Inference wrapper
 class RowPolicyInferenceWrapper(torch.nn.Module):
     def __init__(self, joint_model):
         super().__init__()
@@ -27,10 +26,9 @@ model.eval()
 
 inference_model = RowPolicyInferenceWrapper(model).to("cpu")
 
-example_addr = torch.randn(1, 10, 6)   # (B, 10, 6)
-example_stats = torch.randn(1, 10, 4)  # (B, 10, 4)
+example_addr = torch.randn(1, 10, 6)
+example_stats = torch.randn(1, 10, 4)
 
-# Trace and export
 print("Tracing and exporting TorchScript model...")
 traced_model = torch.jit.trace(inference_model, (example_addr, example_stats))
 os.makedirs(os.path.dirname(EXPORT_PATH), exist_ok=True)

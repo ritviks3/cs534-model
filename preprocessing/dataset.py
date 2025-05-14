@@ -9,12 +9,17 @@ FEATURE_COLUMNS = ['row_hit_rate', 'consec_hits', 'dist_from_last_hit', 'diff_ac
 IDENTIFIERS = ['channel', 'rank', 'bankgroup', 'bank']
 
 class DRAMBankWindowPreprocessor:
-    def __init__(self, filepaths, window_size=10):
-        self.samples = []
+    def __init__(self, filepaths, window_size=10, append_from=None):
+        self.window_size = window_size
         self.addr_fields = ['channel', 'rank', 'bankgroup', 'bank', 'row', 'column']
         self.stats_fields = ['row_hit_rate', 'consec_hits', 'dist_from_last_hit', 'diff_accesses']
         self.identifiers = ['channel', 'rank', 'bankgroup', 'bank']
-        self.window_size = window_size
+
+        if append_from and os.path.exists(append_from):
+            print(f"Loading existing samples from {append_from}")
+            self.samples = torch.load(append_from)
+        else:
+            self.samples = []
 
         for filepath in filepaths:
             df = pd.read_csv(filepath)
@@ -22,13 +27,12 @@ class DRAMBankWindowPreprocessor:
             for col in self.addr_fields + self.stats_fields:
                 df[col] = df[col].astype('float32')
 
-            # Group by bank
             for _, group in df.groupby(self.identifiers):
                 group = group.reset_index(drop=True)
 
                 for i in range(len(group) - window_size):
-                    addr_window = group.iloc[i:i + window_size][self.addr_fields].values  # (10, 6)
-                    stats_window = group.iloc[i:i + window_size][self.stats_fields].values  # (10, 4)
+                    addr_window = group.iloc[i:i + window_size][self.addr_fields].values
+                    stats_window = group.iloc[i:i + window_size][self.stats_fields].values
                     label_row = group.iloc[i + window_size]
                     label = {'closed': 0, 'open': 1}[label_row['label']]
 

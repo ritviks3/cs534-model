@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import torch
 from torch.utils.data import DataLoader
 from preprocessing.dataset import MemoryAccessWindowDataset
-from models.autoencoder import Autoencoder
+from models.vae import Autoencoder
 from tqdm import tqdm
 import os
 
