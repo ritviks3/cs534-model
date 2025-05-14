@@ -1,4 +1,4 @@
-Autoencoder and MLP models to predict row policy based on memory traces.
+VAE+MLP model to predict row policy based on memory traces.
 
 ### Download Data ###
 
